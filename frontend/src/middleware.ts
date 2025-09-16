@@ -1,73 +1,102 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options) {
+          request.cookies.set({ name, value, ...options })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({ name, value, ...options })
+        },
+        remove(name: string, options) {
+          request.cookies.set({ name, value: '', ...options })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
+
+  const { data: { user }, } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  // 보호되지 않은 경로들 (임시로 모든 경로 허용)
-  const publicPaths = ['/', '/login', '/user', '/admin', '/driver']
-  const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
+  // Define protected routes for each role
+  const protectedRoutes = {
+    admin: '/admin',
+    driver: '/driver',
+    user: '/user',
+  }
 
-  // 토큰 확인
-  const token = request.cookies.get('token')?.value ||
-                request.headers.get('authorization')?.replace('Bearer ', '')
+  if (user) {
+    // If user is logged in, fetch their role from the public table
+    const { data: userProfile } = await supabase
+      .from('gckitbut_users')
+      .select('role')
+      .eq('auth_user_id', user.id)
+      .single()
 
-  // 로그인 페이지에 이미 로그인된 사용자가 접근하는 경우
-  if (pathname === '/login' && token) {
-    try {
-      // 토큰에서 역할 정보 추출 (간단한 디코딩)
-      const payload = JSON.parse(atob(token.split('.')[1] || '{}'))
-      const role = payload.role || 'user'
+    const userRole = userProfile?.role
 
-      // 역할에 따라 적절한 페이지로 리디렉션
-      const dashboardPath = role === 'admin' ? '/admin' :
-                           role === 'driver' ? '/driver' : '/user'
-      return NextResponse.redirect(new URL(dashboardPath, request.url))
-    } catch {
-      // 토큰이 유효하지 않으면 로그인 페이지 허용
-      return NextResponse.next()
+    if (pathname.startsWith('/login')) {
+      // If logged-in user tries to access login page, redirect to their dashboard
+      const redirectUrl = userRole ? protectedRoutes[userRole] : '/';
+      return NextResponse.redirect(new URL(redirectUrl, request.url))
     }
-  }
 
-  // 보호된 경로에 토큰 없이 접근하는 경우
-  if (!isPublicPath && !token) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('from', pathname)
-    return NextResponse.redirect(loginUrl)
-  }
+    // Check if user is accessing a route they are not supposed to
+    if (userRole) {
+        const allowedPath = protectedRoutes[userRole];
+        // If user is not in their allowed path, and not in a subpath of it, redirect them
+        if (!pathname.startsWith(allowedPath) && !pathname.startsWith('/api')) {
+             // Allow access to root path
+            if (pathname === '/') return response;
 
-  // 역할별 접근 권한 확인
-  if (token && !isPublicPath) {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1] || '{}'))
-      const userRole = payload.role || 'user'
+            console.log(`Redirecting user with role ${userRole} from ${pathname} to ${allowedPath}`);
+            return NextResponse.redirect(new URL(allowedPath, request.url));
+        }
+    }
 
-      // 역할별 허용된 경로 확인
-      const roleBasedAccess = {
-        admin: ['/admin'],
-        driver: ['/driver'],
-        user: ['/user']
-      }
-
-      const allowedPaths = roleBasedAccess[userRole as keyof typeof roleBasedAccess] || []
-      const hasAccess = allowedPaths.some(path => pathname.startsWith(path))
-
-      if (!hasAccess) {
-        // 권한이 없는 경우 본인의 대시보드로 리디렉션
-        const defaultPath = userRole === 'admin' ? '/admin' :
-                           userRole === 'driver' ? '/driver' : '/user'
-        return NextResponse.redirect(new URL(defaultPath, request.url))
-      }
-    } catch {
-      // 토큰이 유효하지 않으면 로그인 페이지로 리디렉션
+  } else {
+    // If user is not logged in, protect all routes except for the login page
+    const isProtectedRoute = Object.values(protectedRoutes).some(path => pathname.startsWith(path));
+    if (isProtectedRoute) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
   }
 
-  return NextResponse.next()
+  return response
 }
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|api/auth).*)',
   ],
 }

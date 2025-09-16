@@ -1,31 +1,17 @@
-# 🚌 커뮤니티 버스 예약 시스템
+# 🚌 커뮤니티 버스 예약 시스템 (Next.js + Supabase)
 
-커뮤니티 내 통근 버스를 효율적으로 예약하고 관리할 수 있는 웹 애플리케이션입니다.
+커뮤니티 내 통근 버스를 효율적으로 예약하고 관리할 수 있는 웹 애플리케이션입니다. 이 버전은 기존 FastAPI 백엔드를 Next.js API 라우트로 통합하고, 데이터베이스를 Supabase로 마이그레이션한 버전입니다.
 
 ## 🛠 기술 스택
 
-### Frontend
-- **Framework**: Next.js 14+ (App Router)
+- **Framework**: Next.js 14+ (App Router, API Routes)
 - **Language**: TypeScript
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
 - **Styling**: Tailwind CSS
 - **UI Components**: Custom components with dark mode support
-- **State Management**: React Context API (AuthContext)
-- **HTTP Client**: Fetch API with custom wrapper
-- **Authentication**: JWT with localStorage + cookie storage
-
-### Backend
-- **Framework**: FastAPI
-- **Language**: Python 3.12
-- **ORM**: SQLAlchemy 2.x
-- **Database**: SQLite (개발용)
-- **Authentication**: JWT with Bearer tokens
-- **API Documentation**: Swagger UI + ReDoc
-- **Validation**: Pydantic v2
-
-### Development Tools
-- **Package Manager**: npm (Frontend), pip (Backend)
-- **Code Quality**: TypeScript strict mode
-- **Hot Reload**: Next.js dev server + uvicorn reload
+- **State Management**: React Context API (AuthProvider)
+- **Package Manager**: npm
 
 ## ✨ 주요 기능
 
@@ -49,10 +35,10 @@
 - **실시간 좌석 현황**: 예약/취소/빈자리 실시간 확인
 
 ### 🔐 보안 기능
-- JWT 기반 인증 시스템
-- 역할별 접근 권한 제어
-- Next.js Middleware를 통한 라우트 보호
-- 자동 토큰 만료 및 갱신
+- **Supabase Auth**: JWT 기반 인증 및 세션 관리
+- **역할 기반 접근 제어**: `admin`, `driver`, `user` 역할에 따른 페이지 및 API 접근 제어
+- **Next.js Middleware**: Supabase 세션을 이용한 라우트 보호
+- **RLS (Row Level Security)**: Supabase 데이터베이스 레벨 보안 정책 적용
 
 ## 🚀 설치 및 실행
 
@@ -62,230 +48,101 @@ git clone <repository-url>
 cd Gc-KIT-Bus
 ```
 
-### 2. 백엔드 설정
+### 2. Supabase 프로젝트 설정
+이 프로젝트는 Supabase를 데이터베이스 및 인증 백엔드로 사용합니다.
+
+1.  **Supabase 프로젝트 생성**: [supabase.com](https://supabase.com)에서 새 프로젝트를 생성합니다.
+2.  **데이터베이스 스키마 설정**:
+    *   프로젝트 루트에 있는 `migration.sql` 파일의 내용을 복사합니다.
+    *   Supabase 프로젝트의 **SQL Editor**로 이동하여 복사한 SQL을 붙여넣고 실행합니다.
+    *   이 스크립트는 필요한 테이블, 역할(enum), 함수, RLS 정책을 모두 설정합니다.
+
+### 3. 프론트엔드 환경 변수 설정
+
+`frontend` 디렉토리 내에 두 개의 환경 변수 파일을 생성해야 합니다.
+
+#### 3.1. `.env.local` 파일
+이 파일은 브라우저에 노출되어도 안전한 공개 키를 저장합니다. `frontend` 폴더에 `.env.local` 파일을 생성하고 아래 내용을 추가하세요.
 ```bash
-cd backend
-
-# Python 가상환경 생성 (Python 3.12 권장)
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 의존성 설치
-pip install fastapi uvicorn sqlalchemy pydantic python-jose bcrypt python-multipart
-
-# 데모 데이터 초기화 (선택사항)
-python init_demo_data.py
-
-# 백엔드 서버 실행 (개발모드)
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-# 또는
-python main.py
+# Supabase 프로젝트의 API 설정 페이지에서 'Project URL'과 'anon' 'public' 키를 찾아 입력하세요.
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 ```
 
-백엔드 서버가 http://localhost:8000 에서 실행됩니다.
-- API 문서: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+#### 3.2. `.env` 파일
+이 파일은 서버 측에서만 사용되는 비밀 키를 저장합니다. **이 파일은 절대로 버전 관리에 포함해서는 안 됩니다.**
+`frontend` 폴더에 `.env` 파일을 생성하고 아래 내용을 추가하세요.
+```bash
+# Supabase 프로젝트의 API 설정 페이지에서 'service_role' 'secret' 키를 찾아 입력하세요.
+SUPABASE_SERVICE_KEY=<your-service-role-key>
+```
 
-### 3. 프론트엔드 설정
+### 4. 의존성 설치 및 개발 서버 실행
+
 ```bash
 cd frontend
 
 # 의존성 설치
 npm install
-
-# 개발 서버 실행
-npm run dev
 ```
 
-프론트엔드가 http://localhost:3000 에서 실행됩니다.
+### 5. 데모 데이터 생성 (선택사항)
+초기 테스트를 위한 데모 사용자와 데이터를 생성할 수 있습니다.
+```bash
+# 데모 데이터 시딩 스크립트 실행
+npm run db:seed
+```
+이 스크립트는 `SUPABASE_SERVICE_KEY`를 사용하여 관리자 권한으로 사용자를 생성하므로, `.env` 파일이 올바르게 설정되어 있어야 합니다.
+
+### 6. 개발 서버 실행
+```bash
+npm run dev
+```
+애플리케이션이 http://localhost:3000 에서 실행됩니다.
 
 ## 🔑 데모 계정
 
-시스템 테스트를 위한 데모 계정 정보입니다:
+`db:seed` 스크립트를 실행하여 생성된 데모 계정 정보입니다.
 
-- **관리자**: admin / admin123
-- **기사님**: driver1 / driver123
-- **사용자**: user1 / user123
-
-## 📚 API 문서
-
-백엔드 서버 실행 후 다음 URL에서 API 문서를 확인할 수 있습니다:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- **관리자**: `admin@company.com` / `admin123`
+- **기사님**: `driver1@company.com` / `driver123`
+- **사용자**: `user1@company.com` / `user123`
 
 ## 📁 프로젝트 구조
 
 ```
 Gc-KIT-Bus/
-├── backend/
-│   ├── app/
-│   │   ├── api/                    # API 엔드포인트
-│   │   │   ├── auth.py            # 인증 (로그인, JWT)
-│   │   │   ├── users.py           # 사용자 관리
-│   │   │   ├── buses.py           # 버스 & 노선 관리
-│   │   │   ├── reservations.py    # 예약 관리
-│   │   │   └── admin.py           # 관리자 전용 API
-│   │   ├── core/                  # 핵심 설정
-│   │   │   ├── config.py          # 환경 설정
-│   │   │   ├── database.py        # DB 연결 설정
-│   │   │   └── security.py        # JWT, 암호화
-│   │   ├── models/                # SQLAlchemy 모델
-│   │   │   ├── user.py           # 사용자 모델
-│   │   │   ├── bus.py            # 버스, 노선 모델
-│   │   │   └── reservation.py     # 예약 모델
-│   │   └── schemas/               # Pydantic 스키마
-│   │       ├── user.py           # 사용자 스키마
-│   │       ├── bus.py            # 버스 스키마
-│   │       └── reservation.py     # 예약 스키마
-│   ├── main.py                    # FastAPI 애플리케이션
-│   ├── init_demo_data.py          # 데모 데이터 초기화
-│   └── bus_reservation.db         # SQLite 데이터베이스
 ├── frontend/
 │   ├── src/
 │   │   ├── app/                   # Next.js App Router
+│   │   │   ├── api/              # API 라우트 (백엔드 로직)
 │   │   │   ├── admin/            # 관리자 페이지
-│   │   │   │   ├── page.tsx      # 대시보드
-│   │   │   │   ├── buses/        # 버스 관리
-│   │   │   │   ├── routes/       # 노선 관리
-│   │   │   │   ├── reservations/ # 예약 관리
-│   │   │   │   └── users/        # 사용자 관리
 │   │   │   ├── driver/           # 기사님 페이지
 │   │   │   ├── user/             # 사용자 페이지
 │   │   │   └── login/            # 로그인 페이지
 │   │   ├── components/           # React 컴포넌트
-│   │   │   ├── DashboardLayout.tsx
-│   │   │   ├── Sidebar.tsx
-│   │   │   ├── BusSeatLayout.tsx  # 좌석 배치도
-│   │   │   └── ThemeToggle.tsx
-│   │   ├── contexts/             # React Context
-│   │   │   ├── AuthContext.tsx   # 인증 상태
-│   │   │   └── ThemeContext.tsx  # 다크모드
-│   │   ├── lib/
-│   │   │   └── api.ts            # API 클라이언트
-│   │   └── utils/
-│   │       └── busSeats.ts       # 좌석 생성 로직
+│   │   ├── contexts/             # React Context (인증 등)
+│   │   ├── lib/                  # API 클라이언트 래퍼
+│   │   └── utils/                # 유틸리티 함수
+│   ├── scripts/
+│   │   └── seed.ts               # 데이터베이스 시딩 스크립트
 │   ├── middleware.ts             # 인증 미들웨어
-│   ├── tailwind.config.js        # Tailwind 설정
-│   └── package.json              # 프론트엔드 의존성
-├── CLAUDE.md                     # 프로젝트 명세서
+│   └── package.json
+├── migration.sql                 # Supabase DB 스키마
 └── README.md                     # 이 문서
 ```
 
-## 🔒 보안 구현
-
-### 인증 플로우
-1. 사용자 로그인 → JWT 토큰 발급
-2. 토큰을 쿠키 및 localStorage에 저장
-3. Next.js Middleware에서 라우트 접근 시 토큰 검증
-4. 역할별 페이지 접근 권한 확인
-
-### 권한 제어
-- **관리자**: `/admin/*` 경로만 접근 가능
-- **기사님**: `/driver/*` 경로만 접근 가능
-- **일반사용자**: `/user/*` 경로만 접근 가능
-
-## 🐳 Docker 실행 (선택사항)
-
-Docker를 사용하여 서비스를 실행할 수 있습니다:
-
-```bash
-# 백엔드 Docker 실행
-cd backend
-docker build -t bus-reservation-backend .
-docker run -p 8000:8000 bus-reservation-backend
-
-# 프론트엔드 Docker 실행
-cd frontend
-docker build -t bus-reservation-frontend .
-docker run -p 3000:3000 bus-reservation-frontend
-```
-
-## 🔧 개발 가이드
-
-### 새로운 API 엔드포인트 추가
-1. `backend/app/models/`에 모델 정의
-2. `backend/app/schemas/`에 Pydantic 스키마 생성
-3. `backend/app/api/`에 API 라우터 구현
-4. `backend/main.py`에 라우터 등록
-
-### 새로운 프론트엔드 페이지 추가
-1. `frontend/src/app/`에 새 디렉터리 생성
-2. `page.tsx` 파일로 페이지 컴포넌트 구현
-3. 필요시 `components/`에 재사용 가능한 컴포넌트 생성
-4. `lib/api.ts`에 API 호출 함수 추가
-
 ## 🎯 주요 특징
 
-### 🎨 UI/UX
-- **반응형 디자인**: 모바일, 태블릿, 데스크톱 모든 기기 지원
-- **다크 모드**: 시스템 설정 연동 + 수동 토글
-- **직관적 네비게이션**: 역할별 맞춤 사이드바 메뉴
-- **실시간 좌석 배치도**: 28인승/45인승 버스 시각화
-
-### 🚌 버스 좌석 시스템
-- **28인승 버스**: 2-1 배치 (총 14열)
-- **45인승 버스**: 2-2 배치 (10열) + 5연석 (11열)
-- **실시간 좌석 상태**: 예약가능/예약됨/선택됨
-- **좌석 선택**: 드래그/클릭으로 다중 선택 지원
+### 🏗️ 아키텍처
+- **Full-stack Next.js**: FastAPI 백엔드를 Next.js API 라우트로 통합하여 단일 프레임워크로 프론트엔드와 백엔드를 모두 처리합니다.
+- **Serverless-first**: Vercel과 같은 플랫폼에 쉽게 배포할 수 있습니다.
+- **Supabase 통합**: 데이터베이스, 인증, 스토리지 등 백엔드 인프라를 Supabase로 관리하여 개발 및 유지보수 효율성을 높입니다.
 
 ### 🔐 보안 & 인증
-- **JWT 토큰**: Bearer 인증 방식
-- **역할 기반 접근 제어**: admin/driver/user
-- **자동 로그아웃**: 토큰 만료 시
-- **라우트 보호**: Next.js Middleware 활용
+- **Supabase Auth**: 이메일/비밀번호 기반 인증 및 세션 관리를 Supabase가 처리합니다.
+- **역할 기반 접근 제어 (RBAC)**: Next.js 미들웨어와 API 라우트에서 사용자의 역할을 확인하여 페이지와 API에 대한 접근을 제어합니다.
+- **RLS (Row Level Security)**: 데이터베이스 단에서 데이터 접근 정책을 적용하여 보안을 강화합니다.
 
-### 📊 실시간 데이터
-- **예약 현황**: 실시간 좌석 점유율
-- **통계 대시보드**: 사용자/버스/노선/예약 수 집계
-- **필터링**: 날짜/버스/상태별 조회
-
-## 🔧 개발 환경 설정
-
-### 환경 변수 (.env)
-```bash
-# Backend
-SECRET_KEY=your-secret-key-here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# Frontend
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-### 추천 개발 도구
-- **VS Code Extensions**:
-  - TypeScript
-  - Tailwind CSS IntelliSense
-  - Python
-  - SQLite Viewer
-- **API 테스트**: Swagger UI (http://localhost:8000/docs)
-- **데이터베이스**: SQLite Browser
-
-## 🚨 현재 구현 상태
-
-✅ **완료된 기능:**
-- JWT 기반 인증 시스템
-- 역할별 페이지 접근 제어 (admin/driver/user)
-- 버스 관리 (CRUD)
-- 노선 관리 (CRUD)
-- 예약 시스템 (생성/조회/취소)
-- 실시간 좌석 배치도
-- 관리자 대시보드 (통계)
-- 반응형 UI + 다크모드
-- 실시간 데이터 동기화
-
-🔧 **개발 중인 기능:**
-- 사용자 관리 페이지
-- 통계 상세 페이지
-- 알림 시스템
-
-💡 **향후 개선 계획:**
-- HTTPS 환경 구성
-- Redis 캐싱
-- WebSocket 실시간 알림
-- 이메일 알림
-- 모바일 앱 (React Native)
-
-## 📄 라이선스
-
+---
 MIT License
