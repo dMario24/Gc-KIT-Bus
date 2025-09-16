@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import BusSeatLayout from '@/components/BusSeatLayout'
-import { reservationAPI, Reservation } from '@/lib/api'
+import { reservationAPI, Reservation } from '../../../lib/api'
 import { generateBusSeats } from '@/utils/busSeats'
 
 export default function UserReservationsPage() {
