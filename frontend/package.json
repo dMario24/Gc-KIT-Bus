@@ -5,7 +5,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:seed": "node --loader ts-node/esm ./scripts/seed.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
@@ -17,10 +18,13 @@
     "typescript": "^5.9.2"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "autoprefixer": "^10.4.21",
+    "bcryptjs": "^2.4.3",
     "eslint": "^8.57.1",
     "eslint-config-next": "^15.5.3",
     "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.1"
+    "tailwindcss": "^3.4.1",
+    "ts-node": "^10.9.2"
   }
 }
