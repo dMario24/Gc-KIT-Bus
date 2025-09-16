@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import BusSeatLayout from '@/components/BusSeatLayout'
 import { generateBusSeats, Seat, BusType } from '@/utils/busSeats'
-import { busAPI, reservationAPI, Bus, Reservation } from '@/lib/api'
+import { busAPI, reservationAPI, Bus, Reservation } from '../../lib/api'
 
 export default function UserDashboard() {
   const router = useRouter()

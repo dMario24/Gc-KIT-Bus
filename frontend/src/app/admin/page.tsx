@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import BusSeatLayout from '@/components/BusSeatLayout'
 import { generateBusSeats, Seat, BusType } from '@/utils/busSeats'
-import { busAPI, reservationAPI, adminAPI, userAPI, Bus, Reservation } from '@/lib/api'
+import { busAPI, reservationAPI, adminAPI, userAPI, Bus, Reservation } from '../../lib/api'
 
 interface DashboardStats {
   total_users: number
